@@ -107,21 +107,49 @@ function createAlignmentEngine(): MetricEngine {
   };
 }
 
+const VELOCITY_WINDOW = 6; // ~0.2s at 30fps — smooths the derivative so pose jitter isn't mistaken for movement
+
+interface AngleSample {
+  angle: number;
+  t: number;
+}
+
+/** Angular velocity (deg/sec) over a short trailing window, not frame-to-frame —
+ * a raw two-frame derivative of a noisy angle signal is mostly noise itself. */
+function trackVelocity(history: AngleSample[], angle: number, now: number): number {
+  history.push({ angle, t: now });
+  if (history.length > VELOCITY_WINDOW) history.shift();
+  if (history.length < 2) return 0;
+  const oldest = history[0];
+  const dt = (now - oldest.t) / 1000;
+  return dt > 0 ? (angle - oldest.angle) / dt : 0;
+}
+
 /**
  * "Knee depth" engine — for sit-to-stand style reps. Legs come from knee
  * flexion and hips from a separate hip-flexion angle (shoulder-hip-knee), so
  * the two regions track genuinely different joints instead of one number
  * rescaled twice — someone who squats more knee-dominant vs. more hip-hinge
  * will actually show a different balance between the two.
+ *
+ * Position alone can't distinguish a held squat from actively driving out of
+ * one, but real muscles work much harder in the latter — so activation also
+ * factors in how fast the joint is extending (concentric, working against
+ * gravity, weighted higher) or flexing (eccentric control, weighted lower).
  */
 function createKneeDepthEngine(): MetricEngine {
   let phase: "up" | "down" = "up";
   let reps = 0;
+  const kneeHistory: AngleSample[] = [];
+  const hipHistory: AngleSample[] = [];
 
   return {
     update(pose: Pose): MetricResult {
       const kAngle = (kneeAngle(pose, "L") + kneeAngle(pose, "R")) / 2;
       const hAngle = (hipAngle(pose, "L") + hipAngle(pose, "R")) / 2;
+      const now = performance.now();
+      const kVelocity = trackVelocity(kneeHistory, kAngle, now);
+      const hVelocity = trackVelocity(hipHistory, hAngle, now);
 
       if (phase === "up" && kAngle < 120) {
         phase = "down";
@@ -130,8 +158,16 @@ function createKneeDepthEngine(): MetricEngine {
         reps += 1;
       }
 
-      const legs = clamp(((175 - kAngle) / 95) * 100, 0, 100);
-      const hips = clamp(((168 - hAngle) / 85) * 100, 0, 100);
+      const kneeDepth = clamp(((175 - kAngle) / 95) * 100, 0, 100);
+      const hipDepth = clamp(((168 - hAngle) / 85) * 100, 0, 100);
+
+      // extending (standing up) = concentric drive, boosted more than
+      // flexing (sitting down) = eccentric control
+      const kneeEffort = clamp(kVelocity * 0.5, 0, 25) + clamp(-kVelocity * 0.25, 0, 12);
+      const hipEffort = clamp(hVelocity * 0.4, 0, 20) + clamp(-hVelocity * 0.2, 0, 10);
+
+      const legs = clamp(kneeDepth * 0.75 + kneeEffort, 0, 100);
+      const hips = clamp(hipDepth * 0.75 + hipEffort, 0, 100);
 
       return {
         activation: { legs, hips },
