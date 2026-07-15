@@ -1,0 +1,12 @@
+{
+  "name": "Myou — by MyoInsight",
+  "short_name": "Myou",
+  "description": "Your home balance-training companion. Move well, feel supported.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF8F0",
+  "theme_color": "#E4623A",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
