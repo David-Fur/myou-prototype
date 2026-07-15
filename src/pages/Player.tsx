@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { getExercise } from "../lib/exercises";
-import { createMetricEngine, type BodyRegion } from "../lib/metrics";
+import { createMetricEngine, CONFIDENCE_THRESHOLD, type BodyRegion } from "../lib/metrics";
 import { getPoseLandmarker, type Pose } from "../lib/pose";
 import { FeedbackSpeaker } from "../lib/speech";
 import { useAppState } from "../context/AppState";
@@ -10,6 +10,8 @@ import { ActivationMeter } from "../components/ActivationMeter";
 import { Mascot } from "../components/Mascot";
 
 type Phase = "intro" | "starting" | "active" | "summary" | "error";
+
+const TRACKING_LOST_MS = 1400;
 
 const SKELETON_EDGES: [number, number][] = [
   [11, 12],
@@ -38,6 +40,7 @@ export function Player() {
   const [reps, setReps] = useState(0);
   const [liveActivation, setLiveActivation] = useState<Partial<Record<BodyRegion, number>>>({});
   const [audioOn, setAudioOn] = useState(true);
+  const [trackingLost, setTrackingLost] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [summary, setSummary] = useState<{ adherencePct: number; durationSec: number; reps?: number } | null>(null);
 
@@ -50,6 +53,8 @@ export function Player() {
   const lastFeedbackTickRef = useRef(0);
   const bandCountersRef = useRef<Record<string, { inBand: number; total: number }>>({});
   const repsRef = useRef(0);
+  const lastGoodPoseAtRef = useRef(0);
+  const trackingLostRef = useRef(false);
 
   useEffect(() => {
     speakerRef.current.setEnabled(audioOn);
@@ -129,6 +134,9 @@ export function Player() {
     setElapsed(0);
     startTimeRef.current = performance.now();
     lastFeedbackTickRef.current = 0;
+    lastGoodPoseAtRef.current = performance.now();
+    trackingLostRef.current = false;
+    setTrackingLost(false);
     speakerRef.current.start(exercise.name);
     setPhase("active");
     runLoop();
@@ -159,16 +167,22 @@ export function Player() {
         }
       }
 
-      if (pose) {
-        const { activation, reps: repCount } = engine.update(pose);
+      let currentConfidence = 0;
 
-        for (const region of exercise!.regions) {
-          const band = exercise!.targetBand[region];
-          const value = activation[region];
-          if (band && value !== undefined) {
-            const counter = bandCountersRef.current[region];
-            counter.total += 1;
-            if (value >= band[0] && value <= band[1]) counter.inBand += 1;
+      if (pose) {
+        const { activation, reps: repCount, confidence } = engine.update(pose);
+        currentConfidence = confidence ?? 1;
+        const tracked = currentConfidence >= CONFIDENCE_THRESHOLD;
+
+        if (tracked) {
+          for (const region of exercise!.regions) {
+            const band = exercise!.targetBand[region];
+            const value = activation[region];
+            if (band && value !== undefined) {
+              const counter = bandCountersRef.current[region];
+              counter.total += 1;
+              if (value >= band[0] && value <= band[1]) counter.inBand += 1;
+            }
           }
         }
 
@@ -183,28 +197,41 @@ export function Player() {
           lastFeedbackTickRef.current = now;
           setLiveActivation(activation);
 
-          let worstRegion: BodyRegion | null = null;
-          let worstDeviation = 0;
-          let worstDirection: "low" | "high" = "low";
-          for (const region of exercise!.regions) {
-            const band = exercise!.targetBand[region];
-            const value = activation[region];
-            if (!band || value === undefined) continue;
-            const deviation = value < band[0] ? band[0] - value : value > band[1] ? value - band[1] : 0;
-            if (deviation > worstDeviation) {
-              worstDeviation = deviation;
-              worstRegion = region;
-              worstDirection = value < band[0] ? "low" : "high";
+          if (tracked) {
+            let worstRegion: BodyRegion | null = null;
+            let worstDeviation = 0;
+            let worstDirection: "low" | "high" = "low";
+            for (const region of exercise!.regions) {
+              const band = exercise!.targetBand[region];
+              const value = activation[region];
+              if (!band || value === undefined) continue;
+              const deviation = value < band[0] ? band[0] - value : value > band[1] ? value - band[1] : 0;
+              if (deviation > worstDeviation) {
+                worstDeviation = deviation;
+                worstRegion = region;
+                worstDirection = value < band[0] ? "low" : "high";
+              }
+            }
+
+            if (worstRegion && worstDeviation > 8) {
+              if (worstDirection === "low") speakerRef.current.regionLow(worstRegion);
+              else speakerRef.current.regionHigh(worstRegion);
+            } else if (Math.random() < 0.35) {
+              speakerRef.current.encouragement();
             }
           }
-
-          if (worstRegion && worstDeviation > 8) {
-            if (worstDirection === "low") speakerRef.current.regionLow(worstRegion);
-            else speakerRef.current.regionHigh(worstRegion);
-          } else if (Math.random() < 0.35) {
-            speakerRef.current.encouragement();
-          }
         }
+      }
+
+      const trackingNow = performance.now();
+      if (currentConfidence >= CONFIDENCE_THRESHOLD) {
+        lastGoodPoseAtRef.current = trackingNow;
+      }
+      const isLostNow = trackingNow - lastGoodPoseAtRef.current > TRACKING_LOST_MS;
+      if (isLostNow !== trackingLostRef.current) {
+        trackingLostRef.current = isLostNow;
+        setTrackingLost(isLostNow);
+        if (isLostNow) speakerRef.current.lostTracking();
       }
 
       const elapsedSec = (performance.now() - startTimeRef.current) / 1000;
@@ -354,6 +381,29 @@ export function Player() {
                   {audioOn ? "🔊 On" : "🔇 Off"}
                 </button>
               </div>
+
+              {trackingLost && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "32%",
+                    left: 20,
+                    right: 20,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 10,
+                    background: "rgba(0,0,0,0.6)",
+                    borderRadius: 20,
+                    padding: "18px 18px 14px",
+                  }}
+                >
+                  <Mascot mood="thinking" size={52} />
+                  <p style={{ color: "white", textAlign: "center", fontSize: 13.5, margin: 0 }}>
+                    I can't see you fully — step back so your whole body is in frame.
+                  </p>
+                </div>
+              )}
 
               <div
                 style={{

@@ -152,7 +152,9 @@ function createKneeDepthEngine(): MetricEngine {
 }
 
 const SMOOTHING_ALPHA = 0.25;
-const CONFIDENCE_THRESHOLD = 0.4;
+/** Below this pose-tracking confidence, readings are treated as unreliable —
+ * exported so the UI can show a "step back" prompt using the same bar. */
+export const CONFIDENCE_THRESHOLD = 0.4;
 
 /** Exponentially smooths each region's activation and freezes updates when
  * tracking confidence is too low, so a brief occlusion or edge-of-frame

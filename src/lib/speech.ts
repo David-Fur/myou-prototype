@@ -54,6 +54,11 @@ const ENCOURAGEMENT = [
 
 const START_LINES = ["Here we go.", "Let's begin.", "Ready, and hold.", "Nice and steady from the start."];
 const COMPLETE_LINES = ["Well done!", "Great work!", "Session complete, nice job!", "That's a wrap — great effort."];
+const LOST_TRACKING_LINES = [
+  "I can't quite see you — try stepping back a little.",
+  "Let's get your whole body in frame.",
+  "Step back so I can see you fully.",
+];
 
 function pick(list: string[]): string {
   return list[Math.floor(Math.random() * list.length)];
@@ -141,6 +146,10 @@ export class FeedbackSpeaker {
 
   rep(count: number) {
     this.say(String(count), true);
+  }
+
+  lostTracking() {
+    this.say(pick(LOST_TRACKING_LINES), true);
   }
 }
 
