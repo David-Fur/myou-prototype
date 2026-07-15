@@ -59,6 +59,20 @@ export function kneeAngle(pose: Pose, side: "L" | "R"): number {
   return angleAt(hip, knee, ankle);
 }
 
-export function avgVisible(...vals: number[]): number {
-  return mean(vals);
+/** Hip flexion angle (shoulder-hip-knee) — a distinct joint from the knee, so
+ * glute/hip-extensor engagement doesn't just mirror quad/knee engagement. */
+export function hipAngle(pose: Pose, side: "L" | "R"): number {
+  const shoulder = pose[side === "L" ? LM.L_SHOULDER : LM.R_SHOULDER];
+  const hip = pose[side === "L" ? LM.L_HIP : LM.R_HIP];
+  const knee = pose[side === "L" ? LM.L_KNEE : LM.R_KNEE];
+  return angleAt(shoulder, hip, knee);
+}
+
+/** MediaPipe marks visibility as optional; treat untracked as fully visible. */
+export function visibility(landmark: { visibility?: number }): number {
+  return landmark.visibility ?? 1;
+}
+
+export function avgVisible(...landmarks: { visibility?: number }[]): number {
+  return mean(landmarks.map(visibility));
 }

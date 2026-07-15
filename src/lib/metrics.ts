@@ -1,5 +1,16 @@
 import type { Pose } from "./pose";
-import { angleAt, angleFromVertical, clamp, hipMid, kneeAngle, mid, shoulderMid, stddev } from "./geometry";
+import {
+  angleAt,
+  angleFromVertical,
+  avgVisible,
+  clamp,
+  hipAngle,
+  hipMid,
+  kneeAngle,
+  mid,
+  shoulderMid,
+  stddev,
+} from "./geometry";
 import { LM } from "./pose";
 
 export type BodyRegion = "core" | "hips" | "legs" | "shoulders";
@@ -14,6 +25,9 @@ export const REGION_LABEL: Record<BodyRegion, string> = {
 export interface MetricResult {
   activation: Partial<Record<BodyRegion, number>>;
   reps?: number;
+  /** 0-1 pose-tracking confidence for this frame — low when the person is
+   * partly out of frame or occluded, so noisy readings can be ignored. */
+  confidence?: number;
 }
 
 export interface MetricEngine {
@@ -56,6 +70,7 @@ function createStabilityEngine(): MetricEngine {
           core: clamp(100 - coreInstability, 0, 100),
           hips: clamp(100 - hipInstability, 0, 100),
         },
+        confidence: avgVisible(pose[LM.L_SHOULDER], pose[LM.R_SHOULDER], pose[LM.L_HIP], pose[LM.R_HIP]),
       };
     },
   };
@@ -79,15 +94,25 @@ function createAlignmentEngine(): MetricEngine {
           core: clamp(100 - deviation * 4, 0, 100),
           shoulders: clamp(100 - deviation * 3, 0, 100),
         },
+        confidence: avgVisible(
+          pose[LM.L_SHOULDER],
+          pose[LM.R_SHOULDER],
+          pose[LM.L_HIP],
+          pose[LM.R_HIP],
+          pose[LM.L_ANKLE],
+          pose[LM.R_ANKLE]
+        ),
       };
     },
   };
 }
 
 /**
- * "Knee depth" engine — for sit-to-stand style reps. Tracks knee flexion to
- * estimate leg/hip engagement and counts reps via a simple up/down state
- * machine on the knee angle.
+ * "Knee depth" engine — for sit-to-stand style reps. Legs come from knee
+ * flexion and hips from a separate hip-flexion angle (shoulder-hip-knee), so
+ * the two regions track genuinely different joints instead of one number
+ * rescaled twice — someone who squats more knee-dominant vs. more hip-hinge
+ * will actually show a different balance between the two.
  */
 function createKneeDepthEngine(): MetricEngine {
   let phase: "up" | "down" = "up";
@@ -96,6 +121,7 @@ function createKneeDepthEngine(): MetricEngine {
   return {
     update(pose: Pose): MetricResult {
       const kAngle = (kneeAngle(pose, "L") + kneeAngle(pose, "R")) / 2;
+      const hAngle = (hipAngle(pose, "L") + hipAngle(pose, "R")) / 2;
 
       if (phase === "up" && kAngle < 120) {
         phase = "down";
@@ -105,16 +131,57 @@ function createKneeDepthEngine(): MetricEngine {
       }
 
       const legs = clamp(((175 - kAngle) / 95) * 100, 0, 100);
-      const hips = clamp(((170 - kAngle) / 70) * 100, 0, 100);
+      const hips = clamp(((168 - hAngle) / 85) * 100, 0, 100);
 
-      return { activation: { legs, hips }, reps };
+      return {
+        activation: { legs, hips },
+        reps,
+        confidence: avgVisible(
+          pose[LM.L_HIP],
+          pose[LM.R_HIP],
+          pose[LM.L_KNEE],
+          pose[LM.R_KNEE],
+          pose[LM.L_ANKLE],
+          pose[LM.R_ANKLE],
+          pose[LM.L_SHOULDER],
+          pose[LM.R_SHOULDER]
+        ),
+      };
+    },
+  };
+}
+
+const SMOOTHING_ALPHA = 0.25;
+const CONFIDENCE_THRESHOLD = 0.4;
+
+/** Exponentially smooths each region's activation and freezes updates when
+ * tracking confidence is too low, so a brief occlusion or edge-of-frame
+ * moment doesn't show up as a wild, obviously-fake spike. */
+function withSmoothing(engine: MetricEngine): MetricEngine {
+  const smoothed: Partial<Record<BodyRegion, number>> = {};
+
+  return {
+    update(pose: Pose): MetricResult {
+      const result = engine.update(pose);
+      const confidence = result.confidence ?? 1;
+
+      if (confidence >= CONFIDENCE_THRESHOLD) {
+        for (const region of Object.keys(result.activation) as BodyRegion[]) {
+          const raw = result.activation[region];
+          if (raw === undefined) continue;
+          const prev = smoothed[region];
+          smoothed[region] = prev === undefined ? raw : prev + (raw - prev) * SMOOTHING_ALPHA;
+        }
+      }
+
+      return { activation: { ...smoothed }, reps: result.reps, confidence };
     },
   };
 }
 
 export type MetricId = "stability" | "alignment" | "kneeDepth";
 
-export function createMetricEngine(id: MetricId): MetricEngine {
+function createRawEngine(id: MetricId): MetricEngine {
   switch (id) {
     case "stability":
       return createStabilityEngine();
@@ -123,4 +190,8 @@ export function createMetricEngine(id: MetricId): MetricEngine {
     case "kneeDepth":
       return createKneeDepthEngine();
   }
+}
+
+export function createMetricEngine(id: MetricId): MetricEngine {
+  return withSmoothing(createRawEngine(id));
 }

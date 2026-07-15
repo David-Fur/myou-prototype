@@ -8,15 +8,20 @@ interface MascotProps {
 
 const FEATHER = "#8c5b3f";
 const FEATHER_DARK = "#6f4530";
-const BELLY = "#f5dfc0";
-const BEAK = "#eb6834";
+const CAP = "#4a3626";
+const BILL = "#332a22";
+const LEG = "#7a6a58";
+const THROAT = "#71828a";
+const CREAM = "#f5dfc0";
 const INK = "#2b2116";
 
-// Myou the emu — MyoInsight's mascot. A handful of mood variants swap the
-// eyes/brows/mouth/wing so the same component can react to the user.
+// Myou the emu — MyoInsight's mascot. Long neck, small dark-capped head, flat
+// bill and tiny hidden wings distinguish it from reading as a penguin.
 export function Mascot({ mood = "happy", size = 96, className }: MascotProps) {
-  const blink = mood === "sleepy";
+  const eyesClosed = mood === "sleepy";
   const wingUp = mood === "cheer";
+  const bodyMotion = mood === "cheer" ? "myou-cheer-bounce" : "myou-bob";
+  const headMotion = mood === "concerned" ? "myou-shake" : mood === "sleepy" ? "myou-nod" : undefined;
 
   return (
     <svg
@@ -29,81 +34,69 @@ export function Mascot({ mood = "happy", size = 96, className }: MascotProps) {
       role="img"
       aria-label={`Myou the mascot, ${mood}`}
     >
-      {/* legs */}
-      <path d="M64 168 L58 196" stroke={BEAK} strokeWidth="6" strokeLinecap="round" />
-      <path d="M64 168 L50 192" stroke={BEAK} strokeWidth="6" strokeLinecap="round" />
-      <path d="M64 168 L70 194" stroke={BEAK} strokeWidth="6" strokeLinecap="round" />
-      <path d="M96 168 L100 196" stroke={BEAK} strokeWidth="6" strokeLinecap="round" />
-      <path d="M96 168 L112 192" stroke={BEAK} strokeWidth="6" strokeLinecap="round" />
-      <path d="M96 168 L90 194" stroke={BEAK} strokeWidth="6" strokeLinecap="round" />
+      <g className={bodyMotion}>
+        {/* legs */}
+        <path d="M70 172 L62 197" stroke={LEG} strokeWidth="5" strokeLinecap="round" />
+        <path d="M70 172 L56 193" stroke={LEG} strokeWidth="5" strokeLinecap="round" />
+        <path d="M70 172 L68 197" stroke={LEG} strokeWidth="5" strokeLinecap="round" />
+        <path d="M92 172 L100 197" stroke={LEG} strokeWidth="5" strokeLinecap="round" />
+        <path d="M92 172 L106 192" stroke={LEG} strokeWidth="5" strokeLinecap="round" />
+        <path d="M92 172 L92 197" stroke={LEG} strokeWidth="5" strokeLinecap="round" />
 
-      {/* body */}
-      <ellipse cx="80" cy="140" rx="42" ry="38" fill={FEATHER} />
-      <ellipse cx="80" cy="150" rx="26" ry="24" fill={BELLY} />
-
-      {/* far wing (behind body) */}
-      <path
-        d={
-          wingUp
-            ? "M46 118 C 24 96, 20 70, 30 54 C 36 78, 44 96, 56 112 Z"
-            : "M46 118 C 30 128, 22 148, 28 166 C 40 156, 50 142, 54 126 Z"
-        }
-        fill={FEATHER_DARK}
-      />
-
-      {/* neck */}
-      <path
-        d="M70 120 C 54 96, 52 66, 66 40 C 70 58, 80 62, 84 46 C 90 68, 84 96, 96 116 Z"
-        fill={FEATHER}
-      />
-
-      {/* head */}
-      <circle cx="80" cy="34" r="22" fill={FEATHER} />
-
-      {/* near wing (in front, small) */}
-      <path
-        d={
-          wingUp
-            ? "M104 116 C 128 96, 134 72, 126 54 C 118 76, 108 94, 96 110 Z"
-            : "M104 116 C 122 122, 132 138, 130 156 C 118 148, 108 134, 100 120 Z"
-        }
-        fill={FEATHER}
-      />
-
-      {/* beak */}
-      <path d="M98 32 L118 30 L98 40 Z" fill={BEAK} />
-
-      {/* eye */}
-      {blink ? (
-        <path d="M72 32 Q78 36 84 32" stroke={INK} strokeWidth="2.5" strokeLinecap="round" fill="none" />
-      ) : (
-        <>
-          <circle cx="78" cy="30" r="6.5" fill="white" />
-          <circle
-            cx={mood === "concerned" ? "76" : mood === "focus" ? "80" : "78"}
-            cy="30.5"
-            r="3.4"
-            fill={INK}
-          />
-        </>
-      )}
-
-      {/* brow */}
-      {mood === "concerned" && (
-        <path d="M69 20 Q77 16 84 20" stroke={INK} strokeWidth="2.2" strokeLinecap="round" fill="none" />
-      )}
-      {mood === "focus" && (
-        <path d="M70 21 L84 19" stroke={INK} strokeWidth="2.2" strokeLinecap="round" fill="none" />
-      )}
-
-      {/* cheer sparkles */}
-      {mood === "cheer" && (
-        <g stroke={BEAK} strokeWidth="2.4" strokeLinecap="round">
-          <path d="M28 40 L34 40 M31 37 L31 43" />
-          <path d="M126 60 L132 60 M129 57 L129 63" />
-          <path d="M118 20 L122 24 M122 20 L118 24" />
+        {/* body */}
+        <ellipse cx="81" cy="150" rx="35" ry="30" fill={FEATHER} />
+        <g stroke={FEATHER_DARK} strokeWidth="2" strokeLinecap="round" opacity="0.6">
+          <path d="M58 170 Q 56 176 54 180" />
+          <path d="M70 176 Q 69 182 67 186" />
+          <path d="M82 178 Q 82 184 82 188" />
+          <path d="M94 176 Q 95 182 97 186" />
+          <path d="M106 170 Q 108 176 110 180" />
         </g>
-      )}
+
+        {/* wing */}
+        <path
+          className={wingUp ? "myou-wing-cheer" : undefined}
+          d={
+            wingUp
+              ? "M46 136 C 30 118, 26 96, 34 80 C 40 100, 46 116, 52 130 Z"
+              : "M47 132 C 39 136, 35 146, 37 155 C 43 151, 47 143, 48 134 Z"
+          }
+          fill={FEATHER_DARK}
+        />
+
+        {/* neck + head group (shake / nod live here) */}
+        <g className={headMotion}>
+          <path
+            d="M71 124 C 60 103, 59 79, 68 60 C 71 51, 85 51, 88 60 C 96 79, 95 103, 91 124 Z"
+            fill={FEATHER}
+          />
+          <ellipse cx="79" cy="66" rx="9" ry="12" fill={THROAT} opacity="0.5" />
+          <circle cx="78" cy="42" r="17" fill={FEATHER} />
+          <path d="M62 38 C 64 24, 92 24, 94 38 C 84 30, 72 30, 62 38 Z" fill={CAP} />
+          <path d="M93 43 L 115 41 L 113 48 L 93 49 Z" fill={BILL} />
+
+          {eyesClosed ? (
+            <path d="M67 43 Q72 47 77 43" stroke={INK} strokeWidth="2.2" strokeLinecap="round" fill="none" />
+          ) : (
+            <g className="myou-blink">
+              <circle cx="72" cy="43" r="5.5" fill="white" />
+              <circle cx={mood === "concerned" ? "70.5" : "71.5"} cy="43.5" r="3" fill={INK} />
+            </g>
+          )}
+
+          {mood === "concerned" && (
+            <path d="M63 39 Q 72 34 81 38" stroke={CREAM} strokeWidth="2.4" strokeLinecap="round" fill="none" />
+          )}
+        </g>
+
+        {mood === "cheer" && (
+          <g stroke="#eb6834" strokeWidth="2.4" strokeLinecap="round">
+            <path className="myou-sparkle" d="M28 60 L34 60 M31 57 L31 63" />
+            <path className="myou-sparkle" d="M118 70 L124 70 M121 67 L121 73" />
+            <path className="myou-sparkle" d="M110 30 L114 34 M114 30 L110 34" />
+          </g>
+        )}
+      </g>
     </svg>
   );
 }
