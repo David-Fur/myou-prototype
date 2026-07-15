@@ -152,9 +152,15 @@ function createKneeDepthEngine(): MetricEngine {
 }
 
 const SMOOTHING_ALPHA = 0.25;
-/** Below this pose-tracking confidence, readings are treated as unreliable —
- * exported so the UI can show a "step back" prompt using the same bar. */
+/** Below this pose-tracking confidence, readings are too noisy to smooth in
+ * or count toward adherence — a fairly cautious bar, since momentary dips are
+ * common mid-movement (e.g. an ankle briefly self-occluded during a squat). */
 export const CONFIDENCE_THRESHOLD = 0.4;
+/** Below this (looser) confidence, sustained for a while, we tell the user we
+ * genuinely can't see them. Deliberately lower than CONFIDENCE_THRESHOLD so
+ * the same normal mid-movement dips that pause smoothing don't also trigger
+ * a "step back" prompt. */
+export const TRACKING_LOST_CONFIDENCE_THRESHOLD = 0.25;
 
 /** Exponentially smooths each region's activation and freezes updates when
  * tracking confidence is too low, so a brief occlusion or edge-of-frame

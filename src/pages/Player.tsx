@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { getExercise } from "../lib/exercises";
-import { createMetricEngine, CONFIDENCE_THRESHOLD, type BodyRegion } from "../lib/metrics";
+import {
+  createMetricEngine,
+  CONFIDENCE_THRESHOLD,
+  TRACKING_LOST_CONFIDENCE_THRESHOLD,
+  type BodyRegion,
+} from "../lib/metrics";
 import { getPoseLandmarker, type Pose } from "../lib/pose";
 import { FeedbackSpeaker } from "../lib/speech";
 import { useAppState } from "../context/AppState";
@@ -11,7 +16,7 @@ import { Mascot } from "../components/Mascot";
 
 type Phase = "intro" | "starting" | "active" | "summary" | "error";
 
-const TRACKING_LOST_MS = 1400;
+const TRACKING_LOST_MS = 2600;
 
 const SKELETON_EDGES: [number, number][] = [
   [11, 12],
@@ -224,7 +229,7 @@ export function Player() {
       }
 
       const trackingNow = performance.now();
-      if (currentConfidence >= CONFIDENCE_THRESHOLD) {
+      if (currentConfidence >= TRACKING_LOST_CONFIDENCE_THRESHOLD) {
         lastGoodPoseAtRef.current = trackingNow;
       }
       const isLostNow = trackingNow - lastGoodPoseAtRef.current > TRACKING_LOST_MS;

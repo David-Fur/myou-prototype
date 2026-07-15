@@ -149,7 +149,9 @@ export class FeedbackSpeaker {
   }
 
   lostTracking() {
-    this.say(pick(LOST_TRACKING_LINES), true);
+    // not forced — if the tracking signal flickers, this must never be able
+    // to repeat faster than the normal cooldown allows.
+    this.say(pick(LOST_TRACKING_LINES));
   }
 }
 
