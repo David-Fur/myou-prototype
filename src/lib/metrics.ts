@@ -125,8 +125,13 @@ function trackVelocity(history: AngleSample[], angle: number, now: number): numb
   return dt > 0 ? (angle - oldest.angle) / dt : 0;
 }
 
+const DEPTH_SMOOTH_WINDOW = 4; // rolling average for rep-phase detection only
+const SQUAT_DOWN_THRESHOLD = 42; // combined knee+hip depth %, entering "down"
+const SQUAT_UP_THRESHOLD = 18; // combined depth %, returning to "up"
+const SQUAT_MIN_DOWN_MS = 200; // must stay down at least this long — filters noise-driven flicker
+
 /**
- * "Knee depth" engine — for sit-to-stand style reps. Legs come from knee
+ * "Squat" engine — for squat/sit-to-stand style reps. Legs come from knee
  * flexion and hips from a separate hip-flexion angle (shoulder-hip-knee), so
  * the two regions track genuinely different joints instead of one number
  * rescaled twice — someone who squats more knee-dominant vs. more hip-hinge
@@ -136,12 +141,19 @@ function trackVelocity(history: AngleSample[], angle: number, now: number): numb
  * one, but real muscles work much harder in the latter — so activation also
  * factors in how fast the joint is extending (concentric, working against
  * gravity, weighted higher) or flexing (eccentric control, weighted lower).
+ *
+ * Rep counting uses a smoothed combination of knee AND hip depth (the whole
+ * body descending and rising), not knee angle alone — more forgiving of an
+ * imperfect lockout at the top, and more robust to a single landmark
+ * (e.g. the ankle) briefly jittering.
  */
-function createKneeDepthEngine(): MetricEngine {
+function createSquatEngine(): MetricEngine {
   let phase: "up" | "down" = "up";
   let reps = 0;
+  let downSinceAt = 0;
   const kneeHistory: AngleSample[] = [];
   const hipHistory: AngleSample[] = [];
+  const depthHistory: number[] = [];
 
   return {
     update(pose: Pose): MetricResult {
@@ -151,15 +163,20 @@ function createKneeDepthEngine(): MetricEngine {
       const kVelocity = trackVelocity(kneeHistory, kAngle, now);
       const hVelocity = trackVelocity(hipHistory, hAngle, now);
 
-      if (phase === "up" && kAngle < 120) {
+      const kneeDepth = clamp(((175 - kAngle) / 95) * 100, 0, 100);
+      const hipDepth = clamp(((168 - hAngle) / 85) * 100, 0, 100);
+
+      depthHistory.push((kneeDepth + hipDepth) / 2);
+      if (depthHistory.length > DEPTH_SMOOTH_WINDOW) depthHistory.shift();
+      const bodyDepth = depthHistory.reduce((a, b) => a + b, 0) / depthHistory.length;
+
+      if (phase === "up" && bodyDepth > SQUAT_DOWN_THRESHOLD) {
         phase = "down";
-      } else if (phase === "down" && kAngle > 160) {
+        downSinceAt = now;
+      } else if (phase === "down" && bodyDepth < SQUAT_UP_THRESHOLD && now - downSinceAt > SQUAT_MIN_DOWN_MS) {
         phase = "up";
         reps += 1;
       }
-
-      const kneeDepth = clamp(((175 - kAngle) / 95) * 100, 0, 100);
-      const hipDepth = clamp(((168 - hAngle) / 85) * 100, 0, 100);
 
       // extending (standing up) = concentric drive, boosted more than
       // flexing (sitting down) = eccentric control
@@ -223,7 +240,7 @@ function withSmoothing(engine: MetricEngine): MetricEngine {
   };
 }
 
-export type MetricId = "stability" | "alignment" | "kneeDepth";
+export type MetricId = "stability" | "alignment" | "squat";
 
 function createRawEngine(id: MetricId): MetricEngine {
   switch (id) {
@@ -231,8 +248,8 @@ function createRawEngine(id: MetricId): MetricEngine {
       return createStabilityEngine();
     case "alignment":
       return createAlignmentEngine();
-    case "kneeDepth":
-      return createKneeDepthEngine();
+    case "squat":
+      return createSquatEngine();
   }
 }
 
