@@ -259,7 +259,7 @@ export function Player() {
             ← Back to exercises
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
-            <Mascot mood="focus" size={56} />
+            <Mascot mood="teaching" size={56} />
             <h2 style={{ fontSize: 22 }}>{exercise.name}</h2>
           </div>
           <p className="text-secondary" style={{ marginTop: 8 }}>
@@ -287,7 +287,7 @@ export function Player() {
 
       {phase === "error" && (
         <div style={{ textAlign: "center", marginTop: 40 }}>
-          <Mascot mood="concerned" size={80} />
+          <Mascot mood="thinking" size={80} />
           <p style={{ marginTop: 16 }}>{errorMsg}</p>
           <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={startSession}>
             Try again
@@ -379,7 +379,7 @@ export function Player() {
 
       {phase === "summary" && summary && (
         <div style={{ textAlign: "center", marginTop: 24 }}>
-          <Mascot mood={summary.adherencePct >= 70 ? "cheer" : "happy"} size={96} />
+          <Mascot mood={summary.adherencePct >= 70 ? "cheer" : "head-in-sand"} size={96} />
           <h2 style={{ marginTop: 12 }}>{summary.adherencePct >= 70 ? "Great work!" : "Session complete"}</h2>
           <p className="text-secondary" style={{ marginTop: 6 }}>
             {exercise.name} · {summary.durationSec}s{summary.reps !== undefined ? ` · ${summary.reps} reps` : ""}

@@ -202,54 +202,11 @@ button {
     50% { transform: translateY(-6px); }
   }
 
-  .myou-blink {
-    animation: myou-blink 4.5s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: center;
+  .myou-pose-in {
+    animation: myou-pose-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
-  @keyframes myou-blink {
-    0%, 92%, 100% { transform: scaleY(1); }
-    95% { transform: scaleY(0.1); }
-  }
-
-  .myou-wing-cheer {
-    animation: myou-wing-flap 0.6s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: top right;
-  }
-  @keyframes myou-wing-flap {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(-14deg); }
-  }
-
-  .myou-sparkle {
-    animation: myou-twinkle 1.2s ease-in-out infinite;
-  }
-  .myou-sparkle:nth-child(2) { animation-delay: 0.3s; }
-  .myou-sparkle:nth-child(3) { animation-delay: 0.6s; }
-  @keyframes myou-twinkle {
-    0%, 100% { opacity: 0.25; }
-    50% { opacity: 1; }
-  }
-
-  .myou-shake {
-    animation: myou-shake 0.35s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: bottom center;
-  }
-  @keyframes myou-shake {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-2.5deg); }
-    75% { transform: rotate(2.5deg); }
-  }
-
-  .myou-nod {
-    animation: myou-nod 3.5s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: bottom center;
-  }
-  @keyframes myou-nod {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(4deg); }
+  @keyframes myou-pose-in {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
   }
 }

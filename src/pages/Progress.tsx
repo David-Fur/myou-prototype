@@ -139,7 +139,7 @@ export function Progress() {
           </div>
         ) : (
           <div style={{ textAlign: "center", padding: "12px 0" }}>
-            <Mascot mood="focus" size={56} />
+            <Mascot mood="clipboard" size={56} />
             <p className="text-secondary" style={{ fontSize: 13, marginTop: 8 }}>
               Complete a couple more sessions to see your trend here.
             </p>

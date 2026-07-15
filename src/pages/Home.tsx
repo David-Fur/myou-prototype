@@ -14,13 +14,13 @@ export function Home() {
     ? Math.round(thisWeek.reduce((a, s) => a + s.adherencePct, 0) / thisWeek.length)
     : null;
 
-  let mood: MascotMood = "happy";
+  let mood: MascotMood = "waving";
   let message = "Ready when you are — let's move today.";
   if (todayDone) {
     mood = "cheer";
     message = "You've completed today's session. Nice work!";
   } else if (streak.current > 0) {
-    mood = "happy";
+    mood = "thumbs-up";
     message = `You're on a ${streak.current}-day streak! Keep it alive today.`;
   }
 
