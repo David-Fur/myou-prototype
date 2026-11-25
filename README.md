@@ -1,6 +1,6 @@
 Myou is a prototype for a motion capture application to enhance home physiotherapy balance training.
 
-(Solo-projekt)
+(Prototype Execution = Solo-projekt)
 
 # React + TypeScript + Vite
 
