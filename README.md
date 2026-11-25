@@ -1,5 +1,7 @@
 Myou is a prototype for a motion capture application to enhance home physiotherapy balance training.
 
+(Solo-projekt)
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
